@@ -110,14 +110,20 @@ cc_library(
             "tao_bridge/gpu/bace_gemm_thunk.h",
         ],
     ),
+    deps = [
+        ":version_header",
+        "@local_config_tf//:tf_header_lib",
+        "@local_config_tf//:libtensorflow_framework",
+        "@org_tao_compiler//tensorflow/compiler/mlir/xla/ral:ral_bridge",
+    ] + if_platform_alibaba([
+        "//third_party/blade_service_common:blade_service_common_deps",
+    ]),
     copts = if_cuda([
-        "-DGOOGLE_CUDA=1",
+        "-DGOOGLE_CUDA=1"
     ]) + ["-DTF_1_12", "-DTF_MAJOR=1", "-DTF_MINOR=12", "-DIS_PAI_TF"],
     linkopts = [
         "-lm",
         "-lcudart -L/usr/local/cuda-11.2/lib64/",
-        "-I/apsara/lanbo.llb/alibaba/bazel-bin/external/org_tensorflow",
-        "-I/apsara/lanbo.llb/bazel_cache/50e8d65bd29bfc145a52662b0aa6cbe5/external/flatbuffers/include",
     ],
     linkstatic = 1,
     deps = [
@@ -130,17 +136,6 @@ cc_library(
             "@org_tensorflow//tensorflow/core:core_cpu",
             "@org_tensorflow//tensorflow/core:stream_executor_no_cuda",
             "@org_tensorflow//tensorflow/stream_executor:stream_executor_impl",
-#             "@com_google_absl//absl/algorithm",
-#             "@com_google_absl//absl/base",
-#             "@com_google_absl//absl/container:inlined_vector",
-#             "@com_google_absl//absl/strings",
-#             "@com_google_absl//absl/types:span",
-#             "@com_google_absl//absl/types:optional",
-#             "@com_google_absl//absl/utility",
-#             "@com_google_protobuf//:protobuf_headers",
-#             "@org_tensorflow//third_party/eigen3",
-#             "@org_tensorflow//tensorflow/core:proto_text",
-#             "@org_tensorflow//tensorflow:tensorflow_framework_lib",
         ],
         [
             "@local_config_tf//:tf_header_lib",

@@ -2,6 +2,10 @@
 load("@org_third_party//bazel/blade_disc_helper:blade_disc_helper_configure.bzl", "blade_disc_helper_configure")
 load("@org_third_party//bazel:common.bzl", "maybe_http_archive")
 load("@org_third_party//bazel/tf:tf_configure.bzl", "tf_configure")
+load("@org_third_party//bazel/tf_protobuf:tf_protobuf_configure.bzl", "tf_protobuf_configure")
+load("@org_third_party//bazel/blade_service_common:blade_service_common_configure.bzl", "blade_service_common_configure")
+
+load("@org_tensorflow//third_party/gpus:cuda_configure.bzl", "cuda_configure")
 
 # Import external repository rules.
 load("@rules_foreign_cc//foreign_cc:repositories.bzl", "rules_foreign_cc_dependencies")
@@ -38,6 +42,10 @@ def _tao_bridge_toolchains():
     tf_configure(name = "local_config_tf")
 
     blade_disc_helper_configure(name = "local_config_blade_disc_helper")
+
+    blade_service_common_configure(name = "local_config_blade_service_common")
+
+    cuda_configure(name = "local_config_cuda")
 
 def workspace():
     _tao_bridge_repositories()
