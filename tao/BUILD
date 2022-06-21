@@ -128,7 +128,7 @@ cc_library(
     deps = [
         ":version_header",
         "@org_tao_compiler//tensorflow/compiler/mlir/xla/ral:ral_bridge",
-        "//third_party/blade_service_common:blade_service_common_deps",
+        "@blade_service_common//blade_service_common:blade_service_common_deps",
     ] + if_tf_serving(
         [
             "@org_tensorflow//tensorflow/core:lib",
