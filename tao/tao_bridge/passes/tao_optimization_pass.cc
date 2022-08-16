@@ -50,7 +50,7 @@ Status TaoOptimizationPass::Run(const GraphOptimizationPassOptions& options) {
   static std::atomic<int> optimization_counter{0};
   LOG(INFO) << "[lanbo.llb] TaoOptimizationPass::Run";
 
-  bool enable_tao = GetTaoBridgeOptions()->enable_tao;
+  bool enable_tao = GetTaoBridgeOptions(true, &options)->enable_tao;
   if (!enable_tao) {
     LOG(INFO) << "Skip optimize graph when tao is not enabled.";
     return Status::OK();

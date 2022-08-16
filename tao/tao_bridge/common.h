@@ -119,7 +119,8 @@ struct TaoBridgeOptions {
 // Get the globally singleton of TaoBridgeOptions.
 // `force_refresh` is only used for debug. DO NOT update tao envs after
 // it's initialized.
-const TaoBridgeOptions* GetTaoBridgeOptions(bool force_refresh = false);
+const TaoBridgeOptions* GetTaoBridgeOptions(bool force_refresh = false,
+                                            const GraphOptimizationPassOptions* options = nullptr);
 
 }  // namespace tao
 }  // namespace tensorflow

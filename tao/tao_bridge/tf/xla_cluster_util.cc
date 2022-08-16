@@ -297,7 +297,7 @@ OptimizerOptions::GlobalJitLevel GetGlobalJitLevelForGraph(
           .global_jit_level();
 
   // enable JIT when TAO is on
-  if (GetTaoBridgeOptions()->enable_tao &&
+  if (GetTaoBridgeOptions(true, &options)->enable_tao &&
       jit_level_in_session_opts == OptimizerOptions::DEFAULT) {
     jit_level_in_session_opts = OptimizerOptions::ON_1;
   }

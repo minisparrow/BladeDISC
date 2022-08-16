@@ -25,7 +25,7 @@ namespace {
 static TaoBridgeOptions* opts{nullptr};
 static std::once_flag opt_init;
 static std::mutex opt_mtx_;
-static void AllocateTaoBridgeFlags() {
+static void AllocateTaoBridgeFlags(const GraphOptimizationPassOptions* options) {
   std::lock_guard<std::mutex> lock(opt_mtx_);
   if (!opts) {
     opts = new TaoBridgeOptions();
@@ -33,6 +33,10 @@ static void AllocateTaoBridgeFlags() {
   CHECK_OK(ReadBoolFromEnvVar("TF_ENABLE_TAO", false, &opts->enable_tao));
   if (!opts->enable_tao) {
     CHECK_OK(ReadBoolFromEnvVar("BRIDGE_ENABLE_TAO", false, &opts->enable_tao));
+  }
+  if (!opts->enable_tao && options) {
+    opts->enable_tao = options->session_options->config.enable_tao();
+    LOG(WARNING) << "session_config enable_tao=" << opts->enable_tao;
   }
   if (!opts->enable_tao) {
     LOG(WARNING) << "TAO compiler disabled, set env var TF_ENABLE_TAO or "
@@ -129,10 +133,11 @@ static void AllocateTaoBridgeFlags() {
 
 }  // namespace
 
-const TaoBridgeOptions* GetTaoBridgeOptions(bool force_refresh) {
-  std::call_once(opt_init, &AllocateTaoBridgeFlags);
+const TaoBridgeOptions* GetTaoBridgeOptions(bool force_refresh,
+                                            const GraphOptimizationPassOptions* options) {
+  std::call_once(opt_init, &AllocateTaoBridgeFlags, options);
   if (force_refresh) {
-    AllocateTaoBridgeFlags();
+    AllocateTaoBridgeFlags(options);
   }
   return opts;
 }

@@ -145,7 +145,7 @@ Status FunctionalizeControlFlow(Graph* graph,
 
 Status FunctionalizeControlFlowPass::Run(
     const GraphOptimizationPassOptions& options) {
-  bool enable_tao = GetTaoBridgeOptions()->enable_tao;
+  bool enable_tao = GetTaoBridgeOptions(true, &options)->enable_tao;
   bool enable_control_flow = GetTaoBridgeOptions()->tao_enable_control_flow;
   if (enable_tao && enable_control_flow) {
     VLOG(0) << "Enable FunctionalizeControlFlowPass";
