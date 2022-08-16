@@ -883,7 +883,7 @@ Status ConvertTF2MlirHlo(mlir::ModuleOp module_op) {
   // from static to dynamic shapes. This could be generated if the shape
   // inference was originally missing in a TF op but the corresponding HLO op
   // had static shape after lowering.
-  // pm.addPass(mlir::TF::CreateTFShapeInferencePass());
+  pm.addPass(mlir::TF::CreateTFShapeInferencePass());
   // Run LegalizeTFPass again because the previous legalization passes can
   // expose more graph pruning and canonicalization opportunities that are
   // necessary for the second LegalizeTFPass(allow_partial_conversion=false)
