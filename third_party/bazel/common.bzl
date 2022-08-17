@@ -344,8 +344,8 @@ def get_env_bool_value_str(repository_ctx, env_name):
     else:
         return "False"
 
-def get_env_bool_value(repository_ctx, env_name):
-    return True if get_host_environ(repository_ctx, env_name, "False").lower() in ["1", "true", "on"] else False
+def get_env_bool_value(repository_ctx, env_name, default_value = False):
+    return True if get_host_environ(repository_ctx, env_name, str(default_value)).lower() in ["1", "true", "on"] else False
 
 def _tf_serving_http_archive(ctx):
     git_commit = ctx.attr.git_commit
@@ -494,5 +494,3 @@ def tf_http_archive(name, sha256, urls, **kwargs):
         **kwargs
     )
 
-def get_env_bool_value(repository_ctx, env_name, default_value = False):
-    return True if get_host_environ(repository_ctx, env_name, str(default_value)).lower() in ["1", "true", "on"] else False

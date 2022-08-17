@@ -17,6 +17,7 @@
 #include "tao_bridge/errors.h"
 #include "tao_bridge/tf_compatible.h"
 #include "tensorflow/core/framework/tensor.h"
+#include "tensorflow/core/common_runtime/optimization_registry.h"
 
 namespace tensorflow {
 

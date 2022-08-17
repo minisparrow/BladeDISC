@@ -110,25 +110,25 @@ cc_library(
             "tao_bridge/gpu/bace_gemm_thunk.h",
         ],
     ),
-    deps = [
-        ":version_header",
-        "@local_config_tf//:tf_header_lib",
-        "@local_config_tf//:libtensorflow_framework",
-        "@org_tao_compiler//tensorflow/compiler/mlir/xla/ral:ral_bridge",
-    ] + if_platform_alibaba([
-        "//third_party/blade_service_common:blade_service_common_deps",
-    ]),
     copts = if_cuda([
-        "-DGOOGLE_CUDA=1"
-    ]) + ["-DTF_1_12", "-DTF_MAJOR=1", "-DTF_MINOR=12", "-DIS_PAI_TF"],
+        "-DGOOGLE_CUDA=1",
+    ]) + [
+        "-DTF_1_12",
+        "-DTF_MAJOR=1",
+        "-DTF_MINOR=12",
+        "-DIS_PAI_TF",
+    ] + [
+        "-Ithird_party/blade_service_common",
+    ],
     linkopts = [
         "-lm",
-        "-lcudart -L/usr/local/cuda-11.2/lib64/",
+        "-lcudart -L/usr/local/cuda-11.2/lib64",
     ],
     linkstatic = 1,
     deps = [
         ":version_header",
         "@org_tao_compiler//tensorflow/compiler/mlir/xla/ral:ral_bridge",
+        "//third_party/blade_service_common:blade_service_common_deps",
     ] + if_tf_serving(
         [
             "@org_tensorflow//tensorflow/core:lib",
