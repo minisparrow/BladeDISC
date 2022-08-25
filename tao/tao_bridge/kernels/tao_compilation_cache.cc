@@ -828,7 +828,15 @@ Status CompileFunctionImpl(
     TF_RETURN_IF_ERROR(
         WriteTextProto(tensorflow::Env::Default(), dbg_input_file_name, input));
   }
-
+  std::string cuda_path;
+  CHECK_OK(ReadStringFromEnvVar("TAO_CUDA_PATH", "", &cuda_path));
+  if (cuda_path == "") {
+    std::string hippo_root;
+    CHECK_OK(ReadStringFromEnvVar("HIPPO_APP_INST_ROOT", "",
+                                &hippo_root));
+    cuda_path = hippo_root + "/usr/local/cuda";
+    setenv("TAO_CUDA_PATH", cuda_path.c_str(), 1);
+  }
   auto start = std::chrono::steady_clock::now();
   tensorflow::tao::SubProcess tao_compiler;
   VLOG(2) << "compiling function " << func_name << ", input file is "

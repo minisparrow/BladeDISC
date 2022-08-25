@@ -43,17 +43,20 @@ static void AllocateTaoBridgeFlags(const GraphOptimizationPassOptions* options) 
                  << "BRIDGE_ENABLE_TAO to true to enable TAO compiler.";
   }
 
-  CHECK_OK(ReadStringFromEnvVar("TAO_COMPILER_PATH", "tao_compiler_main",
+  std::string hippo_root;
+  CHECK_OK(ReadStringFromEnvVar("HIPPO_APP_INST_ROOT", "",
+                                &hippo_root));
+  CHECK_OK(ReadStringFromEnvVar("TAO_COMPILER_PATH", hippo_root + "/usr/local/bin/tao_compiler_main",
                                 &opts->tao_compiler_path));
-  CHECK_OK(ReadBoolFromEnvVar("TAO_VERBOSE_COMPILATION_ERR_LOG", false,
+  CHECK_OK(ReadBoolFromEnvVar("TAO_VERBOSE_COMPILATION_ERR_LOG", true,
                               &opts->verbose_compilation_err_log));
-  CHECK_OK(ReadBoolFromEnvVar("TAO_ENFORCE_VERBOSE_COMPILATION_LOG", false,
+  CHECK_OK(ReadBoolFromEnvVar("TAO_ENFORCE_VERBOSE_COMPILATION_LOG", true,
                               &opts->verbose_compilation_log));
   CHECK_OK(ReadStringFromEnvVar("TAO_CACHE_DUMP_PATH", "",
                                 &opts->tao_cache_dump_path));
-  CHECK_OK(ReadBoolFromEnvVar("TAO_ENABLE_MLIR", false, &opts->enable_mlir));
+  CHECK_OK(ReadBoolFromEnvVar("TAO_ENABLE_MLIR", true, &opts->enable_mlir));
 
-  CHECK_OK(ReadBoolFromEnvVar("TAO_MLIR_BRANCH_ONLY", false,
+  CHECK_OK(ReadBoolFromEnvVar("TAO_MLIR_BRANCH_ONLY", true,
                               &opts->tao_mlir_branch_only));
 
   CHECK_OK(ReadBoolFromEnvVar("TAO_DUMP_PASS_OUTPUT", false,
@@ -108,7 +111,7 @@ static void AllocateTaoBridgeFlags(const GraphOptimizationPassOptions* options) 
 
   // Experimental features
   CHECK_OK(ReadBoolFromEnvVar(
-      "TAO_EXPERIMENTAL_ENABLE_MLIR_WHOLE_GRAPH_COMPILATION", false,
+      "TAO_EXPERIMENTAL_ENABLE_MLIR_WHOLE_GRAPH_COMPILATION", true,
       &opts->experimental_enable_mlir_whole_graph_compilation));
 
   CHECK_OK(ReadBoolFromEnvVar("TAO_SKIP_TRAINING_GRAPH", false,
