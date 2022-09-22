@@ -1342,6 +1342,65 @@ class ConvertSparseSegmentMeanOp
   }
 };
 
+class ConvertWhereOp : public OpRewritePattern<TF::WhereOp> {
+ public:
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(TF::WhereOp op,
+                                PatternRewriter& rewriter) const override {
+    auto loc = op.getLoc();
+    auto where = rewriter.create<mhlo_disc::WhereOp>(
+        loc, op.index().getType(),
+        RankedTensorType::get({1}, rewriter.getI64Type()), op.input());
+
+    // num_output_elements
+    Value num_output_elements_vec = where.getResult(1);
+    Value idx_zero = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+    Value idx_one = rewriter.create<arith::ConstantIndexOp>(loc, 1);
+    Value num_output_elements = rewriter.create<arith::IndexCastOp>(
+        loc, rewriter.getIndexType(),
+        rewriter.create<tensor::ExtractOp>(loc, num_output_elements_vec,
+                                           idx_zero));
+    Value input_dims =
+        rewriter.create<tensor::DimOp>(loc, where.getResult(0), 1);
+
+    // output is rank 2
+    SmallVector<Value, 2> start_values(2, idx_zero);
+    SmallVector<Value, 2> limit_values(2, input_dims);
+    limit_values[0] = num_output_elements;
+    SmallVector<Value, 2> strides_values(2, idx_one);
+    auto index_ty = rewriter.getIndexType();
+    auto start_indices = rewriter.create<tensor::FromElementsOp>(
+        loc,
+        RankedTensorType::get({static_cast<int64_t>(start_values.size())},
+                              index_ty),
+        start_values);
+    auto limit_indices = rewriter.create<tensor::FromElementsOp>(
+        loc,
+        RankedTensorType::get({static_cast<int64_t>(limit_values.size())},
+                              index_ty),
+        limit_values);
+    auto strides_indices = rewriter.create<tensor::FromElementsOp>(
+        loc,
+        RankedTensorType::get({static_cast<int64_t>(strides_values.size())},
+                              index_ty),
+        strides_values);
+
+    SmallVector<int64_t, 2> output_slice_shape_values;
+    output_slice_shape_values.push_back(-1);
+    auto input_rank =
+        op.input().getType().dyn_cast<RankedTensorType>().getRank();
+    output_slice_shape_values.push_back(input_rank);
+
+    auto index_slice_op = rewriter.create<mhlo::RealDynamicSliceOp>(
+        loc,
+        RankedTensorType::get(output_slice_shape_values, rewriter.getI64Type()),
+        where.getResult(0), start_indices, limit_indices, strides_indices);
+    rewriter.replaceOp(op, index_slice_op.getResult());
+    return success();
+  }
+};
+
 #include "tensorflow/compiler/mlir/disc/transforms/lower_tf.inc"
 
 void PrepareTFPass::runOnOperation() {
@@ -1366,7 +1425,8 @@ void PrepareTFPass::runOnOperation() {
       ConvertBucketizeOp,
       ConvertSparseReshapeOp,
       ConvertSparseFillEmptyRowsOp,
-      ConvertSparseSegmentMeanOp
+      ConvertSparseSegmentMeanOp,
+      ConvertWhereOp
   >(ctx);
   // clang-format on
   (void)applyPatternsAndFoldGreedily(func, std::move(patterns));
