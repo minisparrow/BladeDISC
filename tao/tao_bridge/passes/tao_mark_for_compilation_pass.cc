@@ -2682,6 +2682,12 @@ std::vector<string> GetDiscSupportedOps() {
   });
 #endif
 #endif
+  ops.insert(ops.end(), {
+    "SparseReshape",
+    "SparseFillEmptyRows",
+    "SparseSegmentMean",
+    "Where",
+  });
 #endif
 
 #if !defined(TAO_CPU_ONLY)
