@@ -45,5 +45,4 @@ TEST(EmbeddingColumnTest, DynamicShape3DI64Test) {
                        6, 0, 8, 9, 0, 0, 0, 0, 0, 0, 9, 4}}));
 }
 
-
 }  // namespace mlir_test
