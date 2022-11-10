@@ -18,16 +18,32 @@ namespace mlir_test {
 const std::string c_ft_path =
     "tensorflow/compiler/mlir/disc/tests/regression/data/";
 
-TEST(EmbeddingColumnTest, DynamicShape3DI64Test) {
+// TEST(EmbeddingColumnTest, DynamicShape3DI64Test) {
+//   EXPECT_TRUE(feature_test_main(
+//       /*mlir_file_path*/ c_ft_path + "embedding_column_d_3d_i64.mlir",
+//       /*backend_types*/ {kSupportedCPUBackendList},
+//       /*num_inputs*/ 1,
+//       /*num_outputs*/ 1,
+//       /*input_descriptors*/ {"2x3x4xi64_X"},
+//       /*output_descriptors*/ {"f32_X"},
+//       /*input_vals*/ {{0, 6, 0, 0, 8, 4, 4, 8, 0, 7, 6, 9,
+//                        6, 0, 8, 9, 0, 0, 0, 0, 0, 0, 9, 4}}));
+// }
+
+TEST(EmbeddingColumnTest, WhereFusionDynamicShape3DI64Test) {
+  setenv("DISC_EXPECTED_KERNELS_IN_UT", "1", 1);
+  setenv("DISC_CPU_ENABLE_PROFILE", "1", 1);
   EXPECT_TRUE(feature_test_main(
-      /*mlir_file_path*/ c_ft_path + "embedding_column_d_3d_i64.mlir",
+      /*mlir_file_path*/ c_ft_path + "embedding_column_where_input_fusion_d_3d_i64.mlir",
       /*backend_types*/ {kSupportedCPUBackendList},
       /*num_inputs*/ 1,
       /*num_outputs*/ 1,
       /*input_descriptors*/ {"2x3x4xi64_X"},
-      /*output_descriptors*/ {"f32_X"},
+      /*output_descriptors*/ {"i64_X"},
       /*input_vals*/ {{0, 6, 0, 0, 8, 4, 4, 8, 0, 7, 6, 9,
                        6, 0, 8, 9, 0, 0, 0, 0, 0, 0, 9, 4}}));
+  unsetenv("DISC_CPU_ENABLE_PROFILE");
+  unsetenv("DISC_EXPECTED_KERNELS_IN_UT");
 }
 
 }  // namespace mlir_test

@@ -114,6 +114,8 @@ enum FusionType {
   kStitch,
   // A schedule for concat op having many operands.
   kLargeConcat,
+  // for `where` like ops with output shape determined by values in op's input
+  kWhere,
 };
 
 FusionType getFusionType(Operation* op);

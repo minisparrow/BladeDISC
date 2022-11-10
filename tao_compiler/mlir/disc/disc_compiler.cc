@@ -274,7 +274,7 @@ LogicalResult LowerHLOToLLVM(ModuleOp m, const DISCLoweringOptions& options) {
     }
   }
 
-  pm.addPass(disc_ral::createDiscMarkShapeCalcOpPass());
+  // pm.addPass(disc_ral::createDiscMarkShapeCalcOpPass());
   pm.addPass(disc_ral::createPlacerPass(gpu_enabled));
 
   // Run CSE after placer pass to eliminate some redundant copies.

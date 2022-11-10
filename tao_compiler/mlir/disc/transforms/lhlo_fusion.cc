@@ -113,6 +113,7 @@ class FusionPlanner {
     for (Operation& op : *block) {
       op_list_.push_back(&op);
     }
+    VLOG(0) << op_list_.size();
     cycle_detector_.reset(new GraphCycles(op_list_.size()));
     BuildNodeMap();
   }
@@ -139,7 +140,7 @@ class FusionPlanner {
     for (auto& strategy : fusionPipeline_) {
       currentFusionStrategy_ = strategy.get();
       RunEdgeContractionLoop();
-      LLVM_DEBUG(dumpCluster());
+      (dumpCluster());
     }
 
     // After doing edge contraction, each unique cluster having size
@@ -154,6 +155,10 @@ class FusionPlanner {
       // Make sure the ops in a fusion pattern are in topological ordering.
       fusion_pattern.sortFusionOpListBy(op_to_node_id_);
       if (!fusion_pattern.isFusible() || fusion_pattern.effectiveSize() <= 1) {
+        op->dump();
+        VLOG(0) << " "
+            << fusion_pattern.isFusible() << " "
+            << fusion_pattern.effectiveSize();
         continue;
       }
       plan.emplace_back(fusion_pattern);
@@ -265,6 +270,7 @@ class FusionPlanner {
   // Builds the initial dependency graph.
   void BuildNodeMap() {
     int num_nodes = op_list_.size();
+    VLOG(0) << "num_nodes: " << num_nodes;
     for (int node_id = 0; node_id < num_nodes; ++node_id) {
       Operation* op = op_list_[node_id];
       MakeCluster(node_id);
@@ -403,9 +409,9 @@ class FusionPlanner {
 
     if (!CanContractEdge(from, to)) {
       // cycle detected, recover the deleted edge.
-      LLVM_DEBUG(llvm::dbgs()
+      (llvm::dbgs()
                  << "Could not contract " << from << " -> " << to
-                 << " because contracting the edge would create a cycle.");
+                 << " because contracting the edge would create a cycle.\n");
       return false;
     }
 
@@ -420,6 +426,7 @@ class FusionPlanner {
 
     // Merge the UnionFind Set.
     leader_for_node_.unionSets(from, to);
+    llvm::dbgs() << "Contract " << from << " -> " << to << " success";
     return true;
   }
 
@@ -446,6 +453,7 @@ class FusionPlanner {
         // empty statement by design
       }
     }
+    llvm::dbgs() << "RunEdgeContractionLoop: " << changed << "\n";
     return changed;
   }
 
@@ -527,6 +535,7 @@ struct DiscFusionPass : public DiscFusionPassBase<DiscFusionPass> {
 
   FusionPipeline makeFusionPipeline() {
     FusionPipeline pipeline;
+    VLOG(0) << "fusion_strategy: " << fusion_strategy_;
     if (fusion_strategy_ == "base") {
       pipeline.emplace_back(
           makeNewPlacementAwareFusionStrategy(gpu_enabled_, "base"));
@@ -573,6 +582,7 @@ struct DiscFusionPass : public DiscFusionPassBase<DiscFusionPass> {
                                     &disc_debug_max_fusion_numbers_);
     FusionPipeline pipeline = makeFusionPipeline();
     int64_t fusion_pattern_number = 0;
+    VLOG(0) << "blocks size: " << blocks.size();
     for (Block* block : blocks) {
       FusionPlanner planner(pipeline, block, shapeAnalysisPtr.get());
       llvm::Optional<FusionPlan> plan = planner.Run();
@@ -692,7 +702,7 @@ struct DiscFusionPass : public DiscFusionPassBase<DiscFusionPass> {
                                    SmallVectorImpl<Block*>& blocks) {
     op.walk([&](Block* block) {
       // It does not make sense to fuse the region attached to these ops.
-      if (!isa<lmhlo::ReduceOp, lmhlo::FusionOp>(block->getParentOp()))
+      if (!isa<lmhlo::ReduceOp, lmhlo::FusionOp, lmhlo_disc::WhereOp>(block->getParentOp()))
         blocks.push_back(block);
     });
   }
