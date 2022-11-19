@@ -922,6 +922,10 @@ class ShapePropagator : public PropertyPropBase {
             "aten::masked_fill.Tensor(Tensor self, Tensor mask, Tensor value) -> Tensor",
             "aten::masked_fill_.Scalar(Tensor(a!) self, Tensor mask, Scalar value) -> Tensor(a!)",
             "aten::masked_fill_.Tensor(Tensor(a!) self, Tensor mask, Tensor value) -> Tensor(a!)",
+            "aten::index_put.hacked_twin(Tensor self, Tensor[] indices, Tensor values, bool accumulate=False) -> Tensor",
+            "aten::scatter.value(Tensor self, int dim, Tensor index, Scalar value) -> Tensor",
+            "aten::select_scatter(Tensor self, Tensor src, int dim, int index) -> Tensor",
+            "aten::slice_scatter(Tensor self, Tensor src, int dim=0, SymInt? start=None, SymInt? end=None, SymInt step=1) -> Tensor",
             "aten::floor_divide.Scalar(Tensor self, Scalar other) -> Tensor",
             "aten::floor_divide_.Scalar(Tensor(a!) self, Scalar other) -> Tensor(a!)",
             "aten::relu(Tensor self) -> Tensor",
@@ -1190,6 +1194,7 @@ class ShapePropagator : public PropertyPropBase {
             "aten::add_(Tensor self, Scalar other, Scalar alpha) -> Tensor",
             "aten::sub(Tensor self, Scalar other, Scalar alpha) -> Tensor",
             "aten::sub_(Tensor self, Scalar other, Scalar alpha) -> Tensor",
+            "aten::rsub.Scalar(Tensor self, Scalar other, Scalar alpha=1) -> Tensor",
             "aten::mul(Tensor self, Scalar other) -> Tensor",
             "aten::mul_(Tensor self, Scalar other) -> Tensor",
             "aten::div(Tensor self, Scalar other) -> Tensor",
@@ -1501,6 +1506,8 @@ class ShapePropagator : public PropertyPropBase {
 #if PYTORCH_VERSION_GE(1, 14)
             "aten::sum.dim_IntList(Tensor self, int[]? dim, bool keepdim, *, int? dtype) -> Tensor",
             "aten::mean.dim(Tensor self, int[]? dim, bool keepdim, *, int? dtype) -> Tensor",
+            "aten::var.correction(Tensor self, int[1]? dim, *, int? correction, bool keepdim=False) -> Tensor",
+            "aten::amax(Tensor self, int[1] dim=[], bool keepdim=False) -> Tensor",
 #else
             "aten::sum(Tensor self, int[] dim, bool keepdim, *, int? dtype) -> Tensor",
             "aten::mean(Tensor self, int[] dim, bool keepdim, *, int? dtype) -> Tensor",
@@ -1511,7 +1518,14 @@ class ShapePropagator : public PropertyPropBase {
           if (!num_reduced_dim) {
             return {};
           }
-          at::optional<IValue> opt_dtype = node->get(attr::dtype);
+
+          at::optional<IValue> opt_dtype;
+          if (!(node->matches(
+                    "aten::var.correction(Tensor self, int[1]? dim, *, int? correction, bool keepdim=False) -> Tensor") ||
+                node->matches(
+                    "aten::amax(Tensor self, int[1] dim=[], bool keepdim=False) -> Tensor"))) {
+            opt_dtype = node->get(attr::dtype);
+          }
           return multidim_reduce_with_keepdim(
               node,
               /*num_reduced_dim=*/*num_reduced_dim,
@@ -1759,6 +1773,7 @@ class ShapePropagator : public PropertyPropBase {
             "aten::randint_like(Tensor self, int low, int high, *, int? dtype=None, int? layout=None, Device? device=None, bool? pin_memory=None, MemoryFormat? memory_format=None) -> Tensor",
             "aten::randn_like(Tensor self, *, int? dtype=None, int? layout=None, Device? device=None, bool? pin_memory=None, MemoryFormat? memory_format=None) -> Tensor",
             "aten::zeros_like(Tensor self, *, int? dtype=None, int? layout=None, Device? device=None, bool? pin_memory=None, MemoryFormat? memory_format=None) -> Tensor",
+            "aten::_to_copy(Tensor self, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool? pin_memory=None, bool non_blocking=False, MemoryFormat? memory_format=None) -> Tensor",
 #if PYTORCH_MAJOR_VERSION == 1 && PYTORCH_MINOR_VERSION >= 12
             "aten::_to_copy(Tensor self, *, int? dtype=None, int? layout=None, Device? device=None, bool? pin_memory=None, bool non_blocking=False, MemoryFormat? memory_format=None) -> Tensor",
 #endif
@@ -1787,17 +1802,37 @@ class ShapePropagator : public PropertyPropBase {
     // Additionally:
     //   - has int[] size, ScalarType dtype, Layeout layout and Device device
     //   arguments
+    static const register_formula_for new_size_factories_with_options{
+        {"aten::new_zeros(Tensor self, SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool? pin_memory=None) -> Tensor"},
+        [](Node* node) -> type_vec_t {
+          if (auto type =
+                  node->namedInput(attr::self)->type()->cast<TensorType>()) {
+            auto dim = determineListSize(node->namedInput(attr::size));
+            if (dim)
+              return factory_like_with_ndim(node, *dim);
+          }
+          return {};
+        }};
+
+    // Requirements:
+    //   dims           : equal to number of elements in size
+    //   scalar type    : equal to value of dtype
+    //   device         : equal to value of device
+    //   tensor inputs  : 1
+    //   tensor outputs : 1
+    // Additionally:
+    //   - has int[] size, ScalarType dtype, Layeout layout and Device device
+    //   arguments
     static const register_formula_for size_factories_with_options{
-        {
-            "aten::empty(int[] size, *, int? dtype, int? layout, Device? device, bool? pin_memory, MemoryFormat? memory_format=contiguous_format) -> Tensor",
-            "aten::full(int[] size, Scalar fill_value, *, int? dtype, int? layout, Device? device, bool? pin_memory) -> Tensor",
-            "aten::ones(int[] size, *, int? dtype, int? layout, Device? device, bool? pin_memory) -> Tensor",
-            "aten::rand(int[] size, *, int? dtype, int? layout, Device? device, bool? pin_memory) -> Tensor",
-            "aten::randn(int[] size, *, int? dtype, int? layout, Device? device, bool? pin_memory) -> Tensor",
-            "aten::zeros(int[] size, *, int? dtype, int? layout, Device? device, bool? pin_memory) -> Tensor",
-            "aten::randint(int high, int[] size, *, int? dtype, int? layout, Device? device, bool? pin_memory) -> Tensor",
-            "aten::randint(int low, int high, int[] size, *, int? dtype, int? layout, Device? device, bool? pin_memory) -> Tensor",
-        },
+        {"aten::empty(int[] size, *, int? dtype, int? layout, Device? device, bool? pin_memory, MemoryFormat? memory_format=contiguous_format) -> Tensor",
+         "aten::full(int[] size, Scalar fill_value, *, int? dtype, int? layout, Device? device, bool? pin_memory) -> Tensor",
+         "aten::ones(int[] size, *, int? dtype, int? layout, Device? device, bool? pin_memory) -> Tensor",
+         "aten::rand(int[] size, *, int? dtype, int? layout, Device? device, bool? pin_memory) -> Tensor",
+         "aten::randn(int[] size, *, int? dtype, int? layout, Device? device, bool? pin_memory) -> Tensor",
+         "aten::zeros(int[] size, *, int? dtype, int? layout, Device? device, bool? pin_memory) -> Tensor",
+         "aten::randint(int high, int[] size, *, int? dtype, int? layout, Device? device, bool? pin_memory) -> Tensor",
+         "aten::randint(int low, int high, int[] size, *, int? dtype, int? layout, Device? device, bool? pin_memory) -> Tensor",
+         "aten::new_zeros(Tensor self, SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool? pin_memory=None) -> Tensor"},
         [](Node* node) -> type_vec_t {
           if (auto maybe_size = node->get<c10::List<int64_t>>(attr::size)) {
             return factory_with_ndim(node, (int)maybe_size->size());
@@ -2224,6 +2259,10 @@ class ShapePropagator : public PropertyPropBase {
           node->matches(
               "aten::as_strided(Tensor self, int[] size, int[] stride, int? storage_offset) -> Tensor")) {
         return reshape_prop(node, attr::size, tensor_types);
+      } else if (
+          node->matches(
+              "prims::broadcast_in_dim(Tensor(a) a, SymInt[] shape, int[] broadcast_dimensions) -> Tensor(a)")) {
+        return reshape_prop(node, attr::shape, tensor_types);
       } else if (
           node->matches(
               "aten::as_tensor(Tensor data, *, ScalarType? dtype, Device? device) -> Tensor")) {

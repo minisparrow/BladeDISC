@@ -32,6 +32,8 @@ bool IsTorchMlirSupported(const torch::jit::Node& node) {
     auto name = c10::OperatorName(node.kind().toQualString(), "").name;
     return GetTorchMlirWhiteList().find(name) != GetTorchMlirWhiteList().end();
   }
+
+  std::cout << "not support: " << node << std::endl;
   return false;
 }
 

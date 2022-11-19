@@ -69,6 +69,10 @@ class EngineClass : public torch::CustomClassHolder {
   at::List<at::Tensor> last_inputs();
   at::List<at::Tensor> last_outputs();
 
+  const std::string& getDebugName() const {
+    return attr_debug_name_;
+  }
+
  private:
   torch::jit::Module GetFallback();
   at::List<at::Tensor> Fallback(const at::List<at::Tensor>& inputs);
