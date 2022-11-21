@@ -31,6 +31,7 @@
 
 #include "lib/Conversion/TorchToMhlo/MhloLegalizeUtils.h"
 #include "stablehlo/dialect/ChloOps.h"
+#include "torch-mlir/Conversion/Utils/Utils.h"
 #include "torch-mlir/Dialect/Torch/IR/TorchDialect.h"
 #include "torch-mlir/Dialect/Torch/IR/TorchOps.h"
 #include "torch-mlir/Dialect/Torch/Utils/TorchUpstream.h"
@@ -216,6 +217,95 @@ class ConvertAtenExtractOp : public OpConversionPattern<AtenOpT> {
 } // namespace
 
 namespace {
+template <>
+LogicalResult ConvertAtenOp<OperatorOp>::matchAndRewrite(
+    OperatorOp op,
+    OpAdaptor adaptor,
+    ConversionPatternRewriter& rewriter) const {
+  Location loc = op.getLoc();
+  auto name = op.name();
+  auto outTy = getTypeConverter()
+                   ->convertType(op.getResult(0).getType())
+                   .dyn_cast<mlir::RankedTensorType>();
+
+  if (std::string("prims.broadcast_in_dim") == name) {
+    auto shape = op.getOperand(1);
+    SmallVector<Value, 4> dimSizes;
+    getListConstructElements(shape, dimSizes);
+    // BladeDISC use i32 as shape
+    std::for_each(dimSizes.begin(), dimSizes.end(), [&](Value& dSize) {
+      dSize = rewriter.create<ToI64Op>(loc, dSize).getResult();
+      // dimSize: cast i64 -> i32
+      dSize =
+          rewriter.create<arith::TruncIOp>(loc, rewriter.getI32Type(), dSize);
+      return dSize;
+    });
+
+    SmallVector<int64_t> inputDims;
+    if (!matchPattern(op.getOperand(2), m_TorchConstantIntList(inputDims))) {
+      return rewriter.notifyMatchFailure(op, "non-int dim list unsupported");
+    }
+    SmallVector<Value> torchTensors{op.getOperand(0)};
+    auto builtinTensors = Torch::getTypeConvertedValues(
+        rewriter, op->getLoc(), getTypeConverter(), torchTensors);
+    auto mhloShape =
+        rewriter.create<mlir::tensor::FromElementsOp>(loc, dimSizes);
+    auto result = rewriter.replaceOpWithNewOp<mhlo::DynamicBroadcastInDimOp>(
+        op,
+        outTy,
+        builtinTensors[0],
+        mhloShape,
+        rewriter.getI64TensorAttr(inputDims));
+    return success();
+  }
+  return failure();
+}
+
+template <>
+LogicalResult ConvertAtenOp<AtenArangeOp>::matchAndRewrite(
+    AtenArangeOp op,
+    OpAdaptor adaptor,
+    ConversionPatternRewriter& rewriter) const {
+  auto end = adaptor.end();
+  if (!end.getType().isIntOrIndex())
+    return rewriter.notifyMatchFailure(op, "non-int end unsupported");
+
+  if (!op.dtype().getType().isa<Torch::NoneType>()) {
+    int64_t dtypeInt;
+    if (!matchPattern(op.dtype(), m_TorchConstantInt(&dtypeInt)))
+      return rewriter.notifyMatchFailure(op, "non-const dtype unsupported");
+
+    Type resDtype = getTypeForScalarType(
+        op.getContext(), (torch_upstream::ScalarType)dtypeInt);
+    if (resDtype.isIntOrIndex())
+      return rewriter.notifyMatchFailure(
+          op, "non-int arange dtype unsupported");
+  }
+
+  auto iotaShape = rewriter.create<mlir::tensor::FromElementsOp>(
+      op->getLoc(), ArrayRef<Value>{end});
+  rewriter.replaceOpWithNewOp<mhlo::DynamicIotaOp>(
+      op, getTypeConverter()->convertType(op.getType()), iotaShape, /*dim*/ 0);
+  return success();
+}
+
+template <>
+LogicalResult ConvertAtenOp<AtenCopyOp>::matchAndRewrite(
+    AtenCopyOp op,
+    OpAdaptor adaptor,
+    ConversionPatternRewriter& rewriter) const {
+  Location loc = op.getLoc();
+  Value input = adaptor.src();
+  auto inputTy = input.getType().template dyn_cast<RankedTensorType>();
+  if (!inputTy) {
+    return op.emitError("only RankedTensorType is supported");
+  }
+
+  rewriter.replaceOpWithNewOp<mhlo::ConvertOp>(
+      op, getTypeConverter()->convertType(op.getType()), input);
+  return success();
+}
+
 // Convert a Aten::Relu6 to HLO
 // Relu6(x) = min(AtenRelu(x), 6)
 template <>
@@ -1087,6 +1177,18 @@ class DiscConvertTorchToMhlo
     TorchConversion::setupBackendTypeConversion(target, typeConverter);
 
     RewritePatternSet patterns(context);
+    auto opIsDynamicallyLegal = [&](OperatorOp op) {
+      if (std::string("prims.broadcast_in_dim") == op.name()) {
+        return false;
+      }
+      return true;
+    };
+
+    // Won't mark OperatorOp as illegal, some custom operator may remain
+    // unconverted.
+    target.addDynamicallyLegalOp<OperatorOp>(opIsDynamicallyLegal);
+    patterns.add<ConvertAtenOp<OperatorOp>>(typeConverter, context);
+
 #define INSERT_UNARY_CONVERT_PATTERN(AtenOp) \
   target.addIllegalOp<AtenOp>();             \
   patterns.add<ConvertAtenUnaryConvertOp<AtenOp>>(typeConverter, context);
@@ -1102,7 +1204,6 @@ class DiscConvertTorchToMhlo
     INSERT_UNARY_PATTERN(AtenNegOp, mhlo::NegOp)
     INSERT_UNARY_PATTERN(AtenFloorOp, mhlo::FloorOp)
     INSERT_UNARY_PATTERN(AtenCeilOp, mhlo::CeilOp)
-    INSERT_UNARY_PATTERN(AtenCopyOp, mhlo::CopyOp)
     INSERT_UNARY_PATTERN(AtenItemOp, tensor::ExtractOp)
 #undef INSERT_UNARY_PATTERN
 
@@ -1117,6 +1218,8 @@ class DiscConvertTorchToMhlo
 #define INSERT_ATENOP_PATTERN(AtenOp) \
   target.addIllegalOp<AtenOp>();      \
   patterns.add<ConvertAtenOp<AtenOp>>(typeConverter, context)
+    INSERT_ATENOP_PATTERN(AtenArangeOp);
+    INSERT_ATENOP_PATTERN(AtenCopyOp);
     INSERT_ATENOP_PATTERN(AtenLeakyReluOp);
     INSERT_ATENOP_PATTERN(AtenRelu6Op);
     INSERT_ATENOP_PATTERN(AtenSiluOp);
@@ -1146,6 +1249,8 @@ class DiscConvertTorchToMhlo
         AtenPowTensorTensorOp, chlo::BroadcastPowOp);
     INSERT_BINARY_BROADCAST_PATTERN(AtenMinimumOp, chlo::BroadcastMinOp);
     INSERT_BINARY_BROADCAST_PATTERN(Aten__And__TensorOp, chlo::BroadcastAndOp);
+    INSERT_BINARY_BROADCAST_PATTERN(
+        AtenBitwiseAndTensorOp, chlo::BroadcastAndOp);
 #undef INSERT_BINARY_BROADCAST_PATTERN
 
     if (failed(applyPartialConversion(
