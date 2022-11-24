@@ -34,20 +34,32 @@ ln -s $benchmark_repo_dir torchbenchmark
 # setup benchmark env
 export DISC_EXPERIMENTAL_SPECULATION_TLP_ENHANCE=true \
     DISC_CPU_LARGE_CONCAT_NUM_OPERANDS=4 DISC_CPU_ENABLE_EAGER_TRANSPOSE_FUSION=1 \
-    OMP_NUM_THREADS=1 TORCHBENCH_ATOL=1e-2 TORCHBENCH_RTOL=1e-2
+    TORCHBENCH_ATOL=1e-2 TORCHBENCH_RTOL=1e-2
 
 config_file=blade_$1_$2.yaml
 bench_target=$2
 
-if [ $1 == "cpu" ]
+if [[ $1 == "cpu" ]] || [[ $1 == "aarch64" ]]
 then
-    # 4 cores
-    export GOMP_CPU_AFFINITY="2-5"
-    results=(eval-cpu-fp32)
+    binding_cores=0
+    results=()
+    declare -A threads2cores
+    threads2cores=([1]="0" [2]="0-1" [4]="0-3" [8]="0-7")
+    for threads in $(echo ${!threads2cores[*]})
+    do
+        cores=${threads2cores[$threads]}
+        result=eval-$1-fp32_$threads
+        results[${#results[*]}]=$result
+        export OMP_NUM_THREADS=$threads GOMP_CPU_AFFINITY=$cores
+        taskset -c $cores python3 torchbenchmark/.github/scripts/run-config.py \
+                -c $config_file -b ./torchbenchmark/ --output-dir .
+	mv eval-$1-fp32 $result
+    done
 else
     results=(eval-cuda-fp32 eval-cuda-fp16)
+    python3 torchbenchmark/.github/scripts/run-config.py \
+            -c $config_file -b ./torchbenchmark/ --output-dir .
 fi
-python3 torchbenchmark/.github/scripts/run-config.py -c $config_file -b ./torchbenchmark/ --output-dir .
 
 # results
 date_str=$(date '+%Y%m%d-%H')

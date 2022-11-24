@@ -4,4 +4,7 @@ librosa
 torchvision==0.13.0+cpu
 torchaudio==0.12.0+cpu
 torchtext==0.13.0
+onnx
+onnxruntime
+intel_extension_for_pytorch==1.12.0
 torchdynamo
