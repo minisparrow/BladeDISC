@@ -15,6 +15,7 @@ build:blade_gemm --cxxopt=-DENABLE_BLADE_GEMM
 
 build:platform_alibaba --define is_platform_alibaba=true
 build:platform_alibaba --cxxopt=-DPLATFORM_ALIBABA
+build:platform_alibaba --config=nonccl
 
 build:cxx11abi_0 --cxxopt=-D_GLIBCXX_USE_CXX11_ABI=0
 build:cxx11abi_1 --cxxopt=-D_GLIBCXX_USE_CXX11_ABI=1

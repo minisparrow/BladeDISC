@@ -33,7 +33,7 @@ limitations under the License.
 #include "mlir/Pass/PassManager.h"  // from @llvm-project
 #include "mlir/Support/Timing.h"    // from @llvm-project
 #ifdef PLATFORM_ALIBABA
-#include "tensorflow/compiler/decoupling_xla/tao_compiler.h"
+// #include "tensorflow/compiler/decoupling_xla/tao_compiler.h"
 #endif
 #include "tensorflow/compiler/decoupling/compiler_base.h"
 #include "tensorflow/compiler/decoupling/tao_compiler_input.pb.h"
