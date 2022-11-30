@@ -17,6 +17,6 @@ jobs:
       device: gpu-t4
       dockerfile: docker/cronjobs/Dockerfile.tf.bench
       extra_run_args: --cap-add=SYS_ADMIN --gpus all
-      exec_command: bash ./tensorflow_blade/benchmark/test_tf_bench.sh
+      exec_command: bash ./tensorflow_blade/benchmark/test_tensorflow_bench.sh
       remote_dev_docker: ""
     secrets: inherit
