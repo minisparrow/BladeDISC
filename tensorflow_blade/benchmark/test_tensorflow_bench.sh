@@ -19,6 +19,7 @@ result=eval-cuda-fp32.csv
 pushd ${script_dir}
 
 pip install -r requirement.txt
+export CUDA_VISIBLE_DEVICES=0
 python3 benchmark.py -c model_config.yaml -p ${benchmark_mdoel_dir} -r ${result}
 
 /disc/scripts/ci/ossutil cp -r ${script_dir}/${result} ${oss_dir}/${result}
