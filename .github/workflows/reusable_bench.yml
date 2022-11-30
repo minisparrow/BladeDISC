@@ -76,6 +76,7 @@ jobs:
         docker run --rm -t --user $(id -u):$(id -g) \
           ${{ inputs.extra_run_args }} \
           -v $HOME/.cache:$HOME/.cache \
+          -v $HOME/.local:$HOME/.local \
           -v /etc/passwd:/etc/passwd:ro \
           -v /etc/group:/etc/group:ro \
           -v $PWD:/disc \
