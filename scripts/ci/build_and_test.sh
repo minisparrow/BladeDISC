@@ -12,11 +12,13 @@
 
 
 set -ex
+PYTHON=python3
 
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
 ENTRY=scripts/python/tao_build.py
-VENV_PATH=/opt/venv_disc
+#VENV_PATH=/opt/venv_disc
+VENV_PATH=$PWD/venv_disc
 BLADE_DISC_DIR=tao/python/blade_disc_tf
 
 source ${SCRIPT_DIR}/parse_args.sh "$@"
@@ -31,13 +33,13 @@ fi
   && cd tao && bazel clean --expunge && cd .. \
   && cd tf_community && bazel clean --expunge)
 
-python ${ENTRY} ${VENV_PATH} -s configure --bridge-gcc default --compiler-gcc default ${CPU_ONLY} ${ROCM} ${DCU} ${ROCM_PATH}
-python ${ENTRY} ${VENV_PATH} -s build_tao_bridge ${CPU_ONLY} ${ROCM} ${DCU} ${ROCM_PATH}
-python ${ENTRY} ${VENV_PATH} -s build_tao_compiler ${CPU_ONLY} ${ROCM} ${DCU} ${ROCM_PATH}
+$PYTHON ${ENTRY} ${VENV_PATH} -s configure --bridge-gcc default --compiler-gcc default ${CPU_ONLY} ${ROCM} ${DCU} ${ROCM_PATH}
+$PYTHON ${ENTRY} ${VENV_PATH} -s build_tao_bridge ${CPU_ONLY} ${ROCM} ${DCU} ${ROCM_PATH}
+$PYTHON ${ENTRY} ${VENV_PATH} -s build_tao_compiler ${CPU_ONLY} ${ROCM} ${DCU} ${ROCM_PATH}
 if [[ -z "$ROCM" ]] && [[ -z "$DCU" ]]; then
-  python ${ENTRY} ${VENV_PATH} -s test_tao_bridge_cpp ${CPU_ONLY} ${ROCM} ${DCU} ${ROCM_PATH}
-  python ${ENTRY} ${VENV_PATH} -s test_tao_bridge_py ${CPU_ONLY} ${ROCM} ${DCU} ${ROCM_PATH}
-  python ${ENTRY} ${VENV_PATH} -s test_tao_compiler ${CPU_ONLY} ${ROCM} ${DCU} ${ROCM_PATH}
+  $PYTHON ${ENTRY} ${VENV_PATH} -s test_tao_bridge_cpp ${CPU_ONLY} ${ROCM} ${DCU} ${ROCM_PATH}
+  $PYTHON ${ENTRY} ${VENV_PATH} -s test_tao_bridge_py ${CPU_ONLY} ${ROCM} ${DCU} ${ROCM_PATH}
+  $PYTHON ${ENTRY} ${VENV_PATH} -s test_tao_compiler ${CPU_ONLY} ${ROCM} ${DCU} ${ROCM_PATH}
 fi
 
 # copy libtao_ops.so and tao_compiler_main to blade-disc-tf
